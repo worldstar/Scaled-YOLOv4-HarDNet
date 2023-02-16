@@ -1,0 +1,58 @@
+# parameters
+nc: 80  # number of classes
+depth_multiple: 1.0  # model depth multiple
+width_multiple: 1.0  # layer channel multiple
+
+# anchors
+anchors:
+  - [12,16, 19,36, 40,28]  # P3/8
+  - [36,75, 76,55, 72,146]  # P4/16
+  - [142,110, 192,243, 459,401]  # P5/32
+
+# HarDNet68 backbone
+backbone:
+  # [from=save model position, number, module, args=set model args]
+
+  [[-1, 1, Conv, [32, 3, 1]],  # 0
+    [-1, 1, Conv, [192, 3, 2]],  # 1-P1/2
+    [-1, 1, HarDBlock2, [192, 24, 1.7, 8, True]],
+    [-1, 1, Conv, [256, 3, 2]],  # 3-P2/4
+    [-1, 1, HarDBlock2, [256, 24, 1.7, 16, True]],
+    [-1, 1, Conv, [320, 3, 2]],  # 5-P3/8
+    [-1, 1, HarDBlock2, [320, 28, 1.7, 16, True]],
+    [-1, 1, Conv, [480, 3, 2]],  # 7-P4/16
+    [-1, 1, HarDBlock2, [480, 36, 1.7, 16, True]],
+    [-1, 1, Conv, [720, 3, 2]],  # 9
+    [-1, 1, HarDBlock2, [720, 48, 1.7, 16, True]],
+    [-1, 1, Conv, [1280, 3, 2]], # 11
+    [-1, 1, HarDBlock2, [1280, 256, 1.7, 4, True]],
+    [-1, 1, Conv, [1024, 3, 2]], # 13
+  ]
+  
+  
+# yolov4-csp head
+# na = len(anchors[0])
+head:
+  [[-1, 1, SPPCSP, [512]], # 14
+   [-1, 1, Conv, [256, 1, 1]],
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+   [12, 1, Conv, [256, 1, 1]], # route backbone P4
+   [[-1, -2], 1, Concat, [1]],
+   [-1, 2, BottleneckCSP2, [256]], # 19
+   [-1, 1, Conv, [128, 1, 1]],
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+   [10, 1, Conv, [128, 1, 1]], # route backbone P3
+   [[-1, -2], 1, Concat, [1]],
+   [-1, 2, BottleneckCSP2, [128]], # 24
+   [-1, 1, Conv, [256, 3, 1]],
+   [-2, 1, Conv, [256, 3, 2]],
+   [[-1, 19], 1, Concat, [1]],  # cat
+   [-1, 2, BottleneckCSP2, [256]], # 28
+   [-1, 1, Conv, [512, 3, 1]],
+   [-2, 1, Conv, [512, 3, 2]],
+   [[-1, 14], 1, Concat, [1]],  # cat
+   [-1, 2, BottleneckCSP2, [512]], # 32
+   [-1, 1, Conv, [1024, 3, 1]],
+
+    [[25,29,33], 1, Detect, [nc, anchors]],   # Detect(P3, P4, P5) 
+  ]
